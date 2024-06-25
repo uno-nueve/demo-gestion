@@ -1,0 +1,66 @@
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import ws from "ws";
+
+dotenv.config();
+neonConfig.webSocketConstructor = ws;
+const connectionString = `${process.env.DATABASE_URL}`;
+
+const pool = new Pool({ connectionString });
+const adapter = new PrismaNeon(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+    const hashedPassword = await bcrypt.hash("123pass456", 8);
+
+    const user = await prisma.user.create({
+        data: {
+            name: "Recursos Humanos",
+            email: "example@mail.com",
+            password: {
+                create: {
+                    hash: hashedPassword,
+                },
+            },
+        },
+    });
+
+    const personalData = await prisma.personalData.create({
+        data: {
+            name: "Alice Smith",
+            DNI: "55019384",
+            birth: new Date("1990-07-15"),
+            kids: 1,
+            address: "123 Maple Street",
+            tel: "5551234567",
+            obvs: "---",
+            workData: {
+                create: {
+                    ant: new Date("2018-03-12"),
+                    cond: "Beca",
+                    studies: "Secundario Completo",
+                    studies_grade: "Ingeniería Industrial",
+                    area: "Administracion",
+                    disp: "Full Time",
+                },
+            },
+        },
+    });
+
+    console.log(`Database has been seeded.`);
+    console.dir(user, { depth: null });
+    console.dir(personalData, { depth: null });
+}
+
+main()
+    .then(async () => {
+        await prisma.$disconnect();
+    })
+    .catch(async (e) => {
+        console.error(e);
+        await prisma.$disconnect();
+        process.exit(1);
+    });
